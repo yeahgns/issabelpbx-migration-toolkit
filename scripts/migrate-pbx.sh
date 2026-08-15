@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # ============================================================
-#  migrate-pbx.sh — Migração de PBX Asterisk-based entre VMs
-#  (ex: Issabel, FreePBX) — troca de host mantendo ramais,
+#  migrate-pbx.sh — Migração de Issabel PBX Asterisk-based entre VMs
+#  — troca de host mantendo fluxo, ramais,
 #  troncos, histórico de chamadas (CDR) e gravações.
 #
 #  Suporta DOIS modos de migração, porque em ambientes onde a
 #  instalação é feita on-demand direto do repositório oficial,
 #  é comum acabar com VMs de origem em versões bem diferentes
 #  entre si (ex: uma instalação de 2 anos atrás vs. uma da
-#  semana passada) — cada uma exige uma estratégia diferente:
+#  semana passada). Cada uma exige uma estratégia diferente:
 #
 #   [legacy]  Origem em versão mais antiga, com estrutura de
 #             backup/restore incompatível com o restore nativo
@@ -23,9 +23,9 @@
 #             tarball, sem depender do helper nativo — que
 #             falha com customizações), remove troncos de
 #             forma definitiva, e reconstrói o AstDB do zero
-#             (device state / hints).
+#             (device state/hints).
 #
-#  Uso: bash migrate-pbx.sh
+#  Uso: bash migrate-pbx.sh (verificar permissões).
 # ============================================================
 
 set -euo pipefail
@@ -37,15 +37,15 @@ set -euo pipefail
 #   export PBX_MYSQL_ROOT_PASS="sua-senha-root"
 #   export PBX_NEW_VM_ROOT_PASS="senha-temporaria-para-transferencia"
 #
-# Se não estiverem setadas, o script pede interativamente (sem ecoar na tela).
+# Se não estiverem setadas, o script pede interativamente.
 
 MYSQL_USER="${PBX_MYSQL_USER:-}"
 MYSQL_PASS="${PBX_MYSQL_PASS:-}"
 MYSQL_ROOT_PASS="${PBX_MYSQL_ROOT_PASS:-}"
 NEW_VM_ROOT_PASS="${PBX_NEW_VM_ROOT_PASS:-}"
 
-SSH_KEY="${PBX_SSH_KEY:-$HOME/.ssh/id_ed25519}"
-SSH_PORT="${PBX_SSH_PORT:-22}"   # porta de acesso SSH às VMs — ajuste para seu ambiente
+SSH_KEY="${PBX_SSH_KEY:-$HOME/.ssh/id_ed25519}" # Necessário ajustar conforme seu ambiente atual de execução.
+SSH_PORT="${PBX_SSH_PORT:-22}"   # Porta de acesso SSH às VMs. Também necessário ajustar para seu ambiente, dependendo das suas regras.
 
 SSH_NEW="-p $SSH_PORT -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o ServerAliveInterval=30 -o ServerAliveCountMax=20 -i $SSH_KEY"
 SCP_NEW="-P $SSH_PORT -o StrictHostKeyChecking=no -i $SSH_KEY"
@@ -67,8 +67,7 @@ success() { local m="[OK]     $*"; echo -e "${GRN}${m}${NC}"; log "$m"; }
 warn()    { local m="[AVISO]  $*"; echo -e "${YEL}${m}${NC}"; log "$m"; }
 die()     { local m="[ERRO]   $*"; echo -e "${RED}${m}${NC}"; log "$m"; exit 1; }
 
-# Nota: o log grava os comandos executados remotamente, mas NUNCA os
-# valores de senha em si.
+# Nota: o log grava os comandos executados remotamente, mas NUNCA os valores de senha em si.
 
 send_and_run_new() {
   local label="$1" file="$2"
@@ -111,7 +110,7 @@ prompt_secret() {
 }
 
 install_sshpass_rsync_remote() {
-  # Gera um step comum de instalação de sshpass/rsync na VM de origem
+
   cat > "$STEP" << 'SCRIPT'
 #!/bin/bash
 set -xe
@@ -158,12 +157,10 @@ SCRIPT
 cleanup() { rm -rf "$TMPDIR_LOCAL"; }
 trap cleanup EXIT
 
-# ─── Cabeçalho ───────────────────────────────────────────────────────────────
-
 echo ""
-echo -e "${CYN}╔══════════════════════════════════════════════╗${NC}"
-echo -e "${CYN}║     Migração de PBX Asterisk-based entre VMs  ║${NC}"
-echo -e "${CYN}╚══════════════════════════════════════════════╝${NC}"
+echo -e "${CYN}╔═══════════════════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${CYN}║     Migração de PBX Asterisk-based entre VMs — feito por Guilherme Nunes  ║${NC}"
+echo -e "${CYN}╚═══════════════════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 info "Log salvo em: $LOG_FILE (comandos são logados, senhas nunca são gravadas em texto puro)"
 echo ""
@@ -740,7 +737,7 @@ log "Reboot enviado para $NEW_VM_IP"
 
 echo ""
 echo -e "${GRN}╔══════════════════════════════════════════════╗${NC}"
-echo -e "${GRN}║        ✅  Migração concluída com sucesso!    ║${NC}"
+echo -e "${GRN}║      ✅  Migração concluída com sucesso!     ║${NC}"
 echo -e "${GRN}╚══════════════════════════════════════════════╝${NC}"
 echo ""
 info "Log completo salvo em: $LOG_FILE"
