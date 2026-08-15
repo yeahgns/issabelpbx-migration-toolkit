@@ -1,6 +1,6 @@
-# PBX Migration Toolkit
+# Issabel PBX Migration Toolkit
 
-Migra um PBX baseado em Asterisk (Issabel, FreePBX etc) de uma VM para outra, mantendo ramais, troncos, CDR e gravações.
+Migra um Issabel PBX de uma VM para outra, mantendo fluxo, ramais, troncos, CDR e gravações.
 
 ## Por que dois modos
 
@@ -9,7 +9,7 @@ Ambiente de origem: multi-tenant, cada cliente numa VM própria, provisionadas s
 Isso gera dois cenários de migração diferentes, que não podem ser tratados pelo mesmo caminho:
 
 - **Origem em Issabel 4** (major version anterior): o Issabel tem uma função nativa de Migrate, feita exatamente pra isso. Você importa um backup gerado num Issabel 5 novo através dela. É o caminho mais confiável quando está disponível, então o modo `legacy` usa essa ferramenta em vez de tentar reconstruir manualmente algo que o próprio sistema já resolve.
-- **Origem já em Issabel 5, build antiga**: aqui não tem salto de major version, mas depois de tempo suficiente entre uma build e outra, o import de backup simples para de funcionar, por causa de módulos e schema que já divergiram. A função Migrate nativa não ajuda nesse caso, ela é pensada pra salto de major version, não pra deriva de build. O modo `current` faz a extração manual do tarball e reconstrói o AstDB do zero.
+- **Origem já em Issabel 5, build antiga**: aqui não tem salto de major version, mas depois de tempo suficiente entre uma build e outra, o import de backup simples para de funcionar, por causa de módulos e schema que já divergiram demais. A função Migrate nativa não ajuda nesse caso, ela é pensada pra salto de major version, não pra deriva de build. O modo `current` faz a extração manual do tarball e reconstrói o AstDB do zero.
 
 O script cobre os dois; você escolhe o modo no começo da execução.
 
@@ -42,6 +42,34 @@ bash scripts/migrate-pbx.sh
 
 Sem as variáveis, o script pergunta na hora (sem ecoar na tela). Cada pessoa que rodar o script define as próprias variáveis no ambiente dela, elas não ficam salvas em nenhum arquivo do repositório.
 
+## Migração em massa
+
+Se você precisa migrar várias VMs no mesmo dia (cenário comum quando o motivo da migração é estrutural, tipo trocar de fornecedor ou de datacenter, não só um cliente isolado), rodar o script sequencialmente, um de cada vez, não escala. A abordagem mais simples e que funciona bem aqui é usar `tmux` com uma janela por migração:
+
+```bash
+tmux new -s migracoes
+
+# dentro do tmux, uma janela por VM:
+# Ctrl+b c   → cria nova janela
+# Ctrl+b número → navega entre janelas (0, 1, 2...)
+# Ctrl+b ,   → renomeia a janela atual (útil pra saber qual cliente é qual)
+
+# em cada janela:
+export PBX_MYSQL_USER="asteriskuser"
+export PBX_MYSQL_PASS="sua-senha"
+# ...demais variáveis
+bash scripts/migrate-pbx.sh
+```
+
+O ganho real do tmux aqui não é só rodar em paralelo, é poder **fechar o terminal ou cair a conexão SSH da sua máquina sem matar as migrações em andamento** — a sessão tmux continua rodando no servidor/máquina onde você a iniciou, e você reconecta depois com `tmux attach -t migracoes` pra ver o progresso de cada uma.
+
+Alguns cuidados que fazem diferença na prática:
+
+- **Não abre migração demais ao mesmo tempo.** Cada migração já usa rsync pesado (gravações, principalmente) e conexões SSH simultâneas. Abrir 15 janelas de uma vez satura a banda de saída da sua origem e o resultado é todas ficarem lentas, em vez de rápidas. Migrar em lotes de 3 a 5 por vez costuma ser um bom equilíbrio.
+- **Renomeia as janelas do tmux com o nome do cliente/VM**, não deixa como "1", "2", "3" — quando alguma etapa pedir confirmação manual (ex: troca de DNS), você precisa saber rápido qual janela é qual sem abrir todas pra descobrir.
+- **Os arquivos de log** (`migration_*.log`) já são nomeados com timestamp, então rodar várias instâncias em paralelo não causa conflito de nome — mas vale ir conferindo os logs entre um lote e outro, em vez de só no final, pra pegar falha cedo.
+- Se o volume de gravações de algum cliente for muito grande, considera rodar a etapa 4 (gravações) separada das outras, numa janela própria, já que ela é a que mais demora e menos precisa de atenção ativa sua.
+
 ## Segurança
 
 Nenhuma credencial fica no script. Ela só existe em memória durante a execução, vinda das variáveis de ambiente ou do prompt interativo.
@@ -55,9 +83,10 @@ Detalhes que importam:
 
 ## Requisitos
 
-- `sshpass` e `rsync`
+- [sshpass](https://sshpass.com/) e [rsync](https://github.com/RsyncProject/rsync)
 - Chave SSH pra VM de destino (`~/.ssh/id_ed25519` por padrão)
 - Modo `legacy`: o `issabel_migration.sh` precisa existir na VM de destino, o script para se não achar
+- Pra migração em massa: `tmux` (ou `screen`, se preferir)
 
 ## Estrutura
 
@@ -74,11 +103,11 @@ Se a origem é Issabel 4, usa `legacy`. Se a origem já é Issabel 5 mas de uma 
 
 ## Limitações
 
-- Testado em Issabel/FreePBX sobre CentOS/Debian, outras distros podem precisar de ajuste nos comandos de pacote
+- Testado em Issabel sobre CentOS e Rocky, outras distros podem precisar de ajuste nos comandos de pacote
 - Assume MySQL/MariaDB local nas duas VMs
 - `legacy` depende do `issabel_migration.sh` existir no destino
 - Troca de DNS/registro externo é manual, o script só pausa e espera confirmação
-- Os dois modos assumem que o backup já foi gerado pelo painel antes de rodar, o script não automatiza essa parte
+- Os dois modos assumem que o backup já foi gerado pelo painel antes de rodar (O SCRIPT NÃO AUTOMATIZA ISSO)
 
 ## Licença
 
