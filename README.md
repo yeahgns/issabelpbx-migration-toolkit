@@ -91,3 +91,27 @@ Details that matter:
 - For bulk migration: `tmux` (or `screen`, if you prefer)
 
 ## Structure
+
+```
+pbx-migration-toolkit/
+├── README.md
+├── README.pt-br.md
+└── scripts/
+    └── migrate-pbx.sh
+```
+
+## Which mode to choose
+
+If the source is Issabel 4, use `legacy`. If the source is already Issabel 5 but on a build old enough to cause problems with a direct import, use `current`. When in doubt, `legacy` is the more conservative path, and if the native tool doesn't exist on the destination, the script warns and stops instead of proceeding inconsistently.
+
+## Known limitations
+
+- Tested on Issabel over CentOS and Rocky — other distributions may need adjustments to package installation commands
+- Assumes local MySQL/MariaDB on both VMs
+- `legacy` depends on `issabel_migration.sh` existing on the destination
+- External DNS/record change is manual — the script only pauses and waits for confirmation
+- Both modes assume the backup was already generated through the panel before running (THE SCRIPT DOES NOT AUTOMATE THIS)
+
+## License
+
+MIT
