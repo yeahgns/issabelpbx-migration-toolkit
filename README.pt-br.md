@@ -20,7 +20,7 @@ O script cobre os dois; você escolhe o modo no começo da execução.
 | Etapa | `legacy` | `current` |
 |---|---|---|
 | 0. Troncos | Desabilita e remove só os registros SIP associados | Remove os troncos de vez |
-| 1. Backup | Função Migrate nativa do Issabel (`issabel_migration.sh`), pra importar backup de Issabel 4 num Issabel 5 | Extração manual do tarball + reconstrução do AstDB (device state / hints) |
+| 1. Backup | Função Migrate nativa do Issabel (`issabel_migration.sh`), pra importar backup de Issabel 4 num Issabel 5 | Extração manual do tarball + reconstrução do AstDB (device state/hints) |
 | 2. Rede | External IP, localnet, portas SIP/SIP-TLS, `strictrtp`. Igual nos dois modos |
 | 3. CDR | Dump (período configurável ou tudo) + import, com fix de schema |
 | 4. Gravações | rsync de `/var/spool/asterisk/monitor/`. Igual nos dois modos |
@@ -91,3 +91,27 @@ Detalhes que importam:
 - Pra migração em massa: `tmux` (ou `screen`, se preferir)
 
 ## Estrutura
+
+```
+pbx-migration-toolkit/
+├── README.md
+├── README.pt-br.md
+└── scripts/
+    └── migrate-pbx.sh
+```
+
+## Qual modo escolher
+
+Se a origem é Issabel 4, usa `legacy`. Se a origem já é Issabel 5 mas de uma build antiga o suficiente pra dar problema no import direto, usa `current`. Na dúvida, `legacy` é o caminho mais conservador, e se a ferramenta nativa não existir no destino, o script avisa e para em vez de seguir de qualquer jeito.
+
+## Limitações
+
+- Testado em Issabel sobre CentOS e Rocky, outras distros podem precisar de ajuste nos comandos de pacote
+- Assume MySQL/MariaDB local nas duas VMs
+- `legacy` depende do `issabel_migration.sh` existir no destino
+- Troca de DNS/registro externo é manual, o script só pausa e espera confirmação
+- Os dois modos assumem que o backup já foi gerado pelo painel antes de rodar (O SCRIPT NÃO AUTOMATIZA ISSO)
+
+## Licença
+
+MIT
